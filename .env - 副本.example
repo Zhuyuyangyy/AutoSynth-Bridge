@@ -1,0 +1,11 @@
+# AutoSynth-Bridge 环境变量配置
+
+# 4SAPI配置（主API）
+API_4S_KEY=your-4sapi-key-here
+API_4S_BASE=https://open.ai-api.cn/v1
+
+# 备用：POE API
+POE_API_KEY=your-poe-api-key-here
+
+# Claude Code本地CLI（需提前安装）
+# CLAUDE_CODE_PATH=/usr/local/bin/claude
