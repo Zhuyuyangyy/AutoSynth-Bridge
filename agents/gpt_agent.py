@@ -1,7 +1,24 @@
-"""GPT Agent - 学术逻辑裁判角色（ProviderRouter版）"""
+"""GPT Agent - 学术逻辑裁判角色（ProviderRegistry版）
+
+MIGRATION NOTE: Migrated from legacy ProviderRouter to new ProviderRegistry
++ BaseProvider.generate() system.  See providers/registry.py and
+providers/base.py for the new interfaces.
+"""
 from pathlib import Path
-from config import settings
-from providers import ProviderRouter
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+try:
+    from config import settings
+    from providers.registry import ProviderRegistry
+    from providers.base import ModelMessage
+except ImportError:
+    # Fallback for when running as module
+    import importlib
+    config = importlib.import_module("AutoSynth-Bridge.config", package=None)
+    settings = config.settings
+    ProviderRegistry = importlib.import_module("AutoSynth-Bridge.providers.registry").ProviderRegistry
+    ModelMessage = importlib.import_module("AutoSynth-Bridge.providers.base").ModelMessage
 
 def _load_system_prompt() -> str:
     """从prompts/system_gpt.md加载系统提示词"""
@@ -20,35 +37,37 @@ SYSTEM_PROMPT = _load_system_prompt()
 
 
 class GPTAgent:
-    """GPT学术裁判 - 使用ProviderRouter"""
+    """GPT学术裁判 - 使用ProviderRegistry"""
 
-    def __init__(self, router: ProviderRouter):
-        self.router = router
+    def __init__(self, registry: ProviderRegistry, provider_name: str = "gpt"):
+        self.registry = registry
+        self.provider_name = provider_name
         self.model = settings.gpt_model
-    
+
     async def generate(self, prompt: str, **kwargs) -> str:
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            ModelMessage(role="system", content=SYSTEM_PROMPT),
+            ModelMessage(role="user", content=prompt),
         ]
-        resp = await self.router.chat(
-            messages=messages,
+        provider = self.registry.get(self.provider_name)
+        resp = await provider.generate(
+            messages,
             model=self.model,
             temperature=0.3,
-            **kwargs
+            **kwargs,
         )
         if resp.error:
             raise RuntimeError(f"GPT API error: {resp.error}")
         return resp.content
-    
+
     async def review(self, content: str, round_num: int) -> str:
         prompt = f"【第{round_num}轮学术审查】请对以下内容进行审稿式审查：\n\n{content}"
         return await self.generate(prompt)
-    
+
     async def debate(self, gemini_content: str, round_num: int) -> str:
         prompt = f"【第{round_num}轮互搏】Gemini提出了以下观点，请进行学术反驳或认可，并说明理由：\n\n{gemini_content}"
         return await self.generate(prompt)
-    
+
     async def converge(self, gemini_final: str) -> str:
         prompt = f"【收敛提交】请给出符合SCI二区标准的最终学术方案，基于Gemini的创新内容：\n\n{gemini_final}"
         return await self.generate(prompt)

@@ -1,4 +1,21 @@
-"""LLM Provider抽象层 - 支持多网关OpenAI-compatible接入"""
+"""LLM Provider抽象层 - 支持多网关OpenAI-compatible接入
+
+.. deprecated::
+    This module is **DEPRECATED**.  It contains the legacy ``ProviderRouter``,
+    ``LLMProvider``, and ``OpenAICompatibleProvider`` classes that are being
+    replaced by the new ``providers/`` package (``ProviderRegistry`` +
+    ``BaseProvider`` + ``FallbackChain``).
+
+    All new code MUST use the ``providers/`` package.  This file is kept only
+    for backward compatibility with older call-sites that have not yet been
+    migrated.  It will be removed in a future release.
+
+    **Migration guide:**
+    - ``ProviderRouter`` → ``ProviderRegistry`` (``providers/registry.py``)
+    - ``LLMProvider``     → ``BaseProvider``    (``providers/base.py``)
+    - ``LLMProvider.chat()`` → ``BaseProvider.generate()``
+    - ``LLMResponse``     → ``ModelResponse``   (``providers/base.py``)
+"""
 import os
 import json
 import time

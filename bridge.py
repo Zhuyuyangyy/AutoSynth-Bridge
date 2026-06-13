@@ -22,12 +22,14 @@ class Bridge:
     def _get_humanizer(self):
         """延迟初始化人味化处理器"""
         if self._humanizer is None:
-            from graph.debate_graph import build_provider_router
+            from providers.registry import get_registry
             from humanize import PaperHumanizer, HumanizeConfig
             try:
-                router = build_provider_router()
-                self._humanizer = PaperHumanizer(router)
-            except RuntimeError:
+                registry = get_registry()
+                if not registry.list_names():
+                    return None
+                self._humanizer = PaperHumanizer(registry)
+            except Exception:
                 return None
         return self._humanizer
 

@@ -8,8 +8,19 @@ import git
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
-from config import settings
-from database import db
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+try:
+    from config import settings
+    from database import db
+except ImportError:
+    # Fallback for when running as module
+    import importlib
+    config = importlib.import_module("AutoSynth-Bridge.config", package=None)
+    settings = config.settings
+    db = importlib.import_module("AutoSynth-Bridge.database").db
 
 # 允许的输出扩展名
 ALLOWED_EXTENSIONS = {".py", ".md", ".txt", ".json", ".yaml", ".yml",

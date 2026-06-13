@@ -1,4 +1,19 @@
-"""收敛规则实现 - 三段式一致性评分 + 结构化分歧追踪"""
+"""收敛规则实现 - 三段式一致性评分 + 结构化分歧追踪
+
+LIMITATION DISCLAIMER:
+The "structured agreement" scoring in this module is a PLACEHOLDER
+implementation.  It uses simple keyword-overlap heuristics (Jaccard-style)
+to determine whether two texts agree on innovation, evidence, patent scope,
+and implementation dimensions.  This is NOT a validated consensus metric.
+
+The semantic similarity component optionally uses sentence-transformers
+embeddings (cosine similarity) when the library is installed; otherwise it
+falls back to a constant 0.5 default.
+
+These scores should NOT be interpreted as ground-truth measures of debate
+quality or convergence.  A production system would need a trained NLI model,
+human-validated rubrics, or domain-specific evaluation pipelines.
+"""
 import re
 import numpy as np
 from typing import Optional

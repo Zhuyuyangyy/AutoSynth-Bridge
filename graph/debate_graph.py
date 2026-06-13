@@ -1,53 +1,67 @@
-"""LangGraph辩论状态机 - 核心流程编排（V0.1）"""
+"""LangGraph辩论状态机 - 核心流程编排（V0.1）
+
+MIGRATION NOTE: This module still uses the legacy ProviderRouter from
+providers.py for backward compatibility with DebateGraph.  New code should
+use ProviderRegistry (providers/registry.py) + BaseProvider.generate()
+instead.  The legacy providers.py module is deprecated and will be removed
+once DebateGraph is fully migrated.
+"""
 from langgraph.graph import StateGraph, END
 from typing import Literal, Optional
 
 from state import DebateState, Argument, ConvergenceResult
-from providers import ProviderRouter, OpenAICompatibleProvider
+from providers.registry import ProviderRegistry, get_registry
+from providers.openai_compatible import OpenAICompatibleProvider
+from providers.base import ModelMessage
 from agents.gpt_agent import GPTAgent
 from agents.gemini_agent import GeminiAgent
 from graph.convergence import ConvergenceChecker
 from config import settings
 
 
-def build_provider_router() -> ProviderRouter:
-    """构建多Provider路由"""
-    providers = {}
+def build_provider_registry() -> ProviderRegistry:
+    """构建多Provider注册表（使用新的 ProviderRegistry 系统）"""
+    registry = get_registry()
 
     # 主路径：4SAPI
-    if settings.api_4s_key:
-        providers["4sapi"] = OpenAICompatibleProvider(
+    if settings.api_4s_key and not registry.has("4sapi"):
+        registry.register("4sapi", OpenAICompatibleProvider(
             api_key=settings.api_4s_key,
-            base_url=settings.api_4s_base
-        )
+            base_url=settings.api_4s_base,
+        ))
 
     # 备用1：Poe 官方 OpenAI-compatible API
-    if settings.poe_api_key:
-        providers["poe"] = OpenAICompatibleProvider(
+    if settings.poe_api_key and not registry.has("poe"):
+        registry.register("poe", OpenAICompatibleProvider(
             api_key=settings.poe_api_key,
-            base_url=settings.poe_base
-        )
+            base_url=settings.poe_base,
+        ))
 
     # 备用2：OpenAI 官方 API
-    if settings.openai_api_key:
-        providers["openai"] = OpenAICompatibleProvider(
+    if settings.openai_api_key and not registry.has("openai"):
+        registry.register("openai", OpenAICompatibleProvider(
             api_key=settings.openai_api_key,
-            base_url=settings.openai_base
-        )
+            base_url=settings.openai_base,
+        ))
 
-    if not providers:
+    if not registry.list_names():
         raise RuntimeError("No LLM providers configured. Set at least one of API_4S_KEY, POE_API_KEY, or OPENAI_API_KEY")
 
-    return ProviderRouter(providers)
+    return registry
+
+
+# Backward-compatible alias kept so existing callers of
+# build_provider_router() still work during migration.
+build_provider_router = build_provider_registry
 
 
 class DebateGraph:
     """三模型辩论状态机"""
 
-    def __init__(self, router: Optional[ProviderRouter] = None):
-        self.router = router or build_provider_router()
-        self.gpt = GPTAgent(self.router)
-        self.gemini = GeminiAgent(self.router)
+    def __init__(self, registry: Optional[ProviderRegistry] = None):
+        self.registry = registry or build_provider_registry()
+        self.gpt = GPTAgent(self.registry, provider_name="gpt")
+        self.gemini = GeminiAgent(self.registry, provider_name="gemini")
         self.convergence = ConvergenceChecker()
         self._graph = None
 

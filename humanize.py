@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
 
-from providers import ProviderRouter
+from providers.registry import ProviderRegistry
+from providers.base import ModelMessage
 
 
 class RewriteStrategy(str, Enum):
@@ -166,8 +167,8 @@ STRATEGY_PROMPTS = {
 class PaperHumanizer:
     """SCI论文人味化处理器"""
 
-    def __init__(self, router: ProviderRouter, config: HumanizeConfig = None):
-        self.router = router
+    def __init__(self, registry: ProviderRegistry, config: HumanizeConfig = None):
+        self.registry = registry
         self.config = config or HumanizeConfig()
 
     def _split_into_chunks(self, text: str) -> list[str]:
@@ -232,14 +233,23 @@ class PaperHumanizer:
                 prompt += f"\n\n【必须保留的术语】{', '.join(terms)}"
 
         messages = [
-            {"role": "system", "content": "你是一位学术写作专家，擅长将文本改写为自然的人类学术风格。只输出改写后的文本，不要加任何解释。"},
-            {"role": "user", "content": prompt}
+            ModelMessage(role="system", content="你是一位学术写作专家，擅长将文本改写为自然的人类学术风格。只输出改写后的文本，不要加任何解释。"),
+            ModelMessage(role="user", content=prompt),
         ]
 
-        model = self.config.model or "gpt-4.5-mini"
-        resp = await self.router.chat(
-            messages=messages,
-            model=model,
+        provider_name = self.config.model or "gpt"
+        try:
+            provider = self.registry.get(provider_name)
+        except Exception:
+            available = self.registry.list_names()
+            if not available:
+                print(f"[Humanize] No providers registered in ProviderRegistry")
+                return text
+            provider = self.registry.get(available[0])
+
+        resp = await provider.generate(
+            messages,
+            model=self.config.model or "gpt-4.5-mini",
             temperature=self.config.temperature,
         )
 

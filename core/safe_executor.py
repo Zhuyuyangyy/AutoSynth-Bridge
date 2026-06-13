@@ -39,6 +39,14 @@ class ExecutionResult:
 
 
 class SafeExecutor:
+    """
+    TODO (P1): SafeExecutor currently only validates commands and file paths.
+    The execute_plan() method does NOT actually execute any commands or write
+    any files.  When dry_run=False it returns a "[SIMULATED]" placeholder
+    output instead of real execution.  A proper sandboxed subprocess runner
+    (e.g., asyncio.create_subprocess_exec inside the workspace_dir) needs to
+    be implemented before this component can be used in production.
+    """
     DEFAULT_FORBIDDEN_COMMANDS = [
         "rm -rf", "rm -r /", "del /s /q", "format",
         "git push --force", "git push -f", "git reset --hard",
@@ -195,8 +203,14 @@ class SafeExecutor:
                 step.status = "dry_run"
                 step.output = f"[DRY RUN] Would execute: {step_desc[:200]}"
             else:
+                # TODO (P1): Replace this placeholder with real sandboxed
+                # subprocess execution.  Currently no commands are run and no
+                # files are written -- the step is only validated for safety.
                 step.status = "completed"
-                step.output = f"[SIMULATED] Step validated: {step_desc[:200]}"
+                step.output = (
+                    f"[SIMULATED — NOT ACTUALLY EXECUTED] "
+                    f"Step passed safety validation only: {step_desc[:200]}"
+                )
 
             result.steps_completed += 1
             result.results.append(step)
